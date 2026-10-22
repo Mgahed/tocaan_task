@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PaymentWebhookController;
+use App\Http\Controllers\Api\V1\ProductController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -26,8 +27,11 @@ Route::prefix('v1')->group(function (): void {
     Route::post('webhooks/payments/{gateway}', [PaymentWebhookController::class, 'handle'])
         ->name('api.v1.webhooks.payments.handle');
 
-    // Protected Order & Payment Management Routes
+    // Protected Order, Product & Payment Management Routes
     Route::middleware('auth:api')->group(function (): void {
+        // Products Catalog
+        Route::get('products', [ProductController::class, 'index'])->name('api.v1.products.index');
+
         // Orders
         Route::get('orders', [OrderController::class, 'index'])->name('api.v1.orders.index');
         Route::post('orders', [OrderController::class, 'store'])

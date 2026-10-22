@@ -27,9 +27,6 @@ class OrderFactory extends Factory
             'user_id' => User::factory(),
             'status' => OrderStatusEnum::PENDING,
             'total_amount' => fake()->randomFloat(2, 25, 1500),
-            'customer_name' => fake()->name(),
-            'customer_email' => fake()->safeEmail(),
-            'customer_phone' => fake()->phoneNumber(),
             'shipping_address' => fake()->address(),
             'notes' => fake()->optional()->sentence(),
         ];

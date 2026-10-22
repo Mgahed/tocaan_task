@@ -19,9 +19,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('status', 30)->default(OrderStatusEnum::PENDING->value)->index();
             $table->decimal('total_amount', 12, 2)->default(0);
-            $table->string('customer_name');
-            $table->string('customer_email');
-            $table->string('customer_phone', 50)->nullable();
             $table->text('shipping_address')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();

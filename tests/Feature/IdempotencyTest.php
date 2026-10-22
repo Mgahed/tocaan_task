@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -60,16 +61,16 @@ class IdempotencyTest extends TestCase
 
     public function test_reusing_idempotency_key_with_different_payload_returns_422_error(): void
     {
+        $product1 = Product::factory()->create(['price' => 50.00]);
+        $product2 = Product::factory()->create(['price' => 100.00]);
         $idempotencyKey = (string) Str::uuid();
 
         $this->withHeaders([
             'Authorization' => "Bearer {$this->token}",
             'Idempotency-Key' => $idempotencyKey,
         ])->postJson('/api/v1/orders', [
-            'customer_name' => 'John',
-            'customer_email' => 'john@example.com',
             'items' => [
-                ['product_name' => 'Item A', 'quantity' => 1, 'price' => 50.00],
+                ['product_id' => $product1->id, 'quantity' => 1],
             ],
         ])->assertStatus(201);
 
@@ -77,10 +78,8 @@ class IdempotencyTest extends TestCase
             'Authorization' => "Bearer {$this->token}",
             'Idempotency-Key' => $idempotencyKey,
         ])->postJson('/api/v1/orders', [
-            'customer_name' => 'John',
-            'customer_email' => 'john@example.com',
             'items' => [
-                ['product_name' => 'Item B (Modified)', 'quantity' => 5, 'price' => 100.00],
+                ['product_id' => $product2->id, 'quantity' => 5],
             ],
         ]);
 

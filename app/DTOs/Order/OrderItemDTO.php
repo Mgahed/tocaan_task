@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\DTOs\Order;
 
+use App\Models\Product;
+
 readonly class OrderItemDTO
 {
     public float $subtotal;
 
     public function __construct(
+        public int $productId,
         public string $productName,
         public int $quantity,
         public float $unitPrice,
@@ -17,23 +20,25 @@ readonly class OrderItemDTO
     }
 
     /**
-     * @param array{product_name: string, quantity: int|string, unit_price: float|int|string} $data
+     * Create an OrderItemDTO from a database Product model and requested quantity.
      */
-    public static function fromArray(array $data): self
+    public static function fromProduct(Product $product, int $quantity): self
     {
         return new self(
-            productName: trim($data['product_name']),
-            quantity: (int) $data['quantity'],
-            unitPrice: round((float) $data['unit_price'], 2),
+            productId: $product->id,
+            productName: $product->name,
+            quantity: $quantity,
+            unitPrice: round((float) $product->price, 2),
         );
     }
 
     /**
-     * @return array{product_name: string, quantity: int, unit_price: float, subtotal: float}
+     * @return array{product_id: int, product_name: string, quantity: int, unit_price: float, subtotal: float}
      */
     public function toArray(): array
     {
         return [
+            'product_id' => $this->productId,
             'product_name' => $this->productName,
             'quantity' => $this->quantity,
             'unit_price' => $this->unitPrice,

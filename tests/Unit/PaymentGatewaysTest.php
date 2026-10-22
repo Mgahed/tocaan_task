@@ -22,7 +22,7 @@ class PaymentGatewaysTest extends TestCase
             'webhook_secret' => 'test_cc_secret',
         ]);
 
-        $order = new Order(['total_amount' => 199.99, 'customer_email' => 'buyer@example.com']);
+        $order = new Order(['total_amount' => 199.99]);
 
         // Successful charge
         $successPayload = new PaymentPayloadDTO(
@@ -54,7 +54,7 @@ class PaymentGatewaysTest extends TestCase
             'webhook_secret' => 'test_pp_secret',
         ]);
 
-        $order = new Order(['total_amount' => 350.00, 'customer_email' => 'customer@example.com']);
+        $order = new Order(['total_amount' => 350.00]);
 
         // Successful charge
         $successPayload = new PaymentPayloadDTO(

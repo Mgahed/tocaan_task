@@ -9,6 +9,7 @@ use App\DTOs\Order\OrderItemDTO;
 use App\Enums\OrderStatusEnum;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ class OrderService
 
     /**
      * Retrieve paginated orders for the authenticated user with optional status filtering.
-     * Eager-loads items and payments to strictly prevent N+1 query issues.
+     * Eager-loads user, items, and payments to strictly prevent N+1 query issues.
      */
     public function listUserOrders(
         int $userId,
@@ -34,7 +35,7 @@ class OrderService
         return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($userId, $status, $perPage, $page): LengthAwarePaginator {
             return Order::query()
                 ->where('user_id', $userId)
-                ->with(['items', 'payments'])
+                ->with(['user', 'items', 'payments'])
                 ->withCount('payments')
                 ->status($status)
                 ->latest('id')
@@ -54,7 +55,7 @@ class OrderService
         /** @var Order|null $order */
         $order = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($orderId): ?Order {
             return Order::query()
-                ->with(['items', 'payments', 'user'])
+                ->with(['user', 'items', 'payments'])
                 ->withCount('payments')
                 ->find($orderId);
         });
@@ -71,32 +72,32 @@ class OrderService
     }
 
     /**
-     * Create a new order along with its line items inside a database transaction.
+     * Create a new order for the authenticated user by resolving product names and prices from the database.
+     *
+     * @throws BusinessRuleException
      */
     public function createOrder(OrderDTO $dto): Order
     {
         $order = DB::transaction(function () use ($dto): Order {
-            $totalAmount = $dto->calculateTotal();
+            $resolvedItems = $this->resolveOrderItemsFromDatabase($dto->requestedItems);
+            $totalAmount = OrderDTO::calculateTotalFromItems($resolvedItems);
 
             $order = Order::create([
                 'user_id' => $dto->userId,
                 'status' => $dto->status,
                 'total_amount' => $totalAmount,
-                'customer_name' => $dto->customerName,
-                'customer_email' => $dto->customerEmail,
-                'customer_phone' => $dto->customerPhone,
                 'shipping_address' => $dto->shippingAddress,
                 'notes' => $dto->notes,
             ]);
 
             $itemsPayload = array_map(
                 static fn (OrderItemDTO $item): array => $item->toArray(),
-                $dto->items
+                $resolvedItems
             );
 
             $order->items()->createMany($itemsPayload);
 
-            return $order->load(['items', 'payments'])->loadCount('payments');
+            return $order->load(['user', 'items', 'payments'])->loadCount('payments');
         });
 
         $this->invalidateOrderCache($dto->userId, $order->id);
@@ -137,7 +138,7 @@ class OrderService
             }
 
             // Update scalar order attributes if provided
-            $updatableFields = ['customer_name', 'customer_email', 'customer_phone', 'shipping_address', 'notes'];
+            $updatableFields = ['shipping_address', 'notes'];
             foreach ($updatableFields as $field) {
                 if (array_key_exists($field, $validated)) {
                     $lockedOrder->{$field} = $validated[$field];
@@ -148,7 +149,7 @@ class OrderService
                 $lockedOrder->status = OrderStatusEnum::from((string) $validated['status']);
             }
 
-            // If items are provided, recalculate subtotals and total amount
+            // If items are provided, resolve products from DB and recalculate subtotals & total amount
             if (isset($validated['items']) && is_array($validated['items'])) {
                 if ($lockedOrder->payments()->exists()) {
                     throw new BusinessRuleException(
@@ -157,28 +158,28 @@ class OrderService
                     );
                 }
 
-                $itemDTOs = array_map(
-                    static fn (array $item): OrderItemDTO => OrderItemDTO::fromArray($item),
+                $requestedItems = array_map(
+                    static fn (array $item): array => [
+                        'product_id' => (int) $item['product_id'],
+                        'quantity' => (int) $item['quantity'],
+                    ],
                     $validated['items']
                 );
 
-                $newTotal = array_reduce(
-                    $itemDTOs,
-                    static fn (float $carry, OrderItemDTO $item): float => $carry + $item->subtotal,
-                    0.0
-                );
+                $resolvedItems = $this->resolveOrderItemsFromDatabase($requestedItems);
+                $newTotal = OrderDTO::calculateTotalFromItems($resolvedItems);
 
                 $lockedOrder->items()->delete();
                 $lockedOrder->items()->createMany(
-                    array_map(static fn (OrderItemDTO $item): array => $item->toArray(), $itemDTOs)
+                    array_map(static fn (OrderItemDTO $item): array => $item->toArray(), $resolvedItems)
                 );
 
-                $lockedOrder->total_amount = round($newTotal, 2);
+                $lockedOrder->total_amount = $newTotal;
             }
 
             $lockedOrder->save();
 
-            return $lockedOrder->load(['items', 'payments'])->loadCount('payments');
+            return $lockedOrder->load(['user', 'items', 'payments'])->loadCount('payments');
         });
 
         $this->invalidateOrderCache($userId, $order->id);
@@ -221,6 +222,42 @@ class OrderService
         });
 
         $this->invalidateOrderCache($userId, $orderId);
+    }
+
+    /**
+     * Resolve requested product IDs and quantities in a single batch query from the database (zero N+1).
+     *
+     * @param array<int, array{product_id: int, quantity: int}> $requestedItems
+     * @return array<int, OrderItemDTO>
+     * @throws BusinessRuleException
+     */
+    private function resolveOrderItemsFromDatabase(array $requestedItems): array
+    {
+        $productIds = array_values(array_unique(array_column($requestedItems, 'product_id')));
+
+        // Fetch all products in one query (preventing N+1)
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $resolvedItems = [];
+        foreach ($requestedItems as $item) {
+            /** @var Product|null $product */
+            $product = $products->get($item['product_id']);
+
+            if ($product === null) {
+                throw new BusinessRuleException(
+                    "Product with ID [{$item['product_id']}] is unavailable or inactive.",
+                    422
+                );
+            }
+
+            $resolvedItems[] = OrderItemDTO::fromProduct($product, $item['quantity']);
+        }
+
+        return $resolvedItems;
     }
 
     /**

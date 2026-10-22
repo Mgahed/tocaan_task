@@ -8,6 +8,7 @@ use App\Enums\PaymentMethodEnum;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -27,51 +28,89 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Seed catalog products in database
+        $product1 = Product::updateOrCreate(
+            ['name' => 'Wireless Mechanical Keyboard'],
+            [
+                'description' => 'RGB Hot-swappable Wireless Mechanical Keyboard',
+                'price' => 125.00,
+                'stock' => 50,
+                'is_active' => true,
+            ]
+        );
+
+        $product2 = Product::updateOrCreate(
+            ['name' => '27-inch 4K IPS Monitor'],
+            [
+                'description' => 'Ultra HD 144Hz IPS Display Monitor',
+                'price' => 499.99,
+                'stock' => 30,
+                'is_active' => true,
+            ]
+        );
+
+        $product3 = Product::updateOrCreate(
+            ['name' => 'USB-C Docking Station'],
+            [
+                'description' => '12-in-1 Thunderbolt 4 USB-C Hub',
+                'price' => 150.00,
+                'stock' => 75,
+                'is_active' => true,
+            ]
+        );
+
+        Product::updateOrCreate(
+            ['name' => 'MacBook Pro 16-inch M4'],
+            [
+                'description' => 'Apple M4 Pro chip with 14-core CPU and 20-core GPU',
+                'price' => 2499.00,
+                'stock' => 20,
+                'is_active' => true,
+            ]
+        );
+
         // 1. Pending order without payments (can be updated or deleted)
         $pendingOrder = Order::factory()->pending()->create([
             'user_id' => $user->id,
-            'customer_name' => $user->name,
-            'customer_email' => $user->email,
             'total_amount' => 250.00,
         ]);
 
         OrderItem::factory()->create([
             'order_id' => $pendingOrder->id,
-            'product_name' => 'Wireless Mechanical Keyboard',
+            'product_id' => $product1->id,
+            'product_name' => $product1->name,
             'quantity' => 2,
-            'unit_price' => 125.00,
+            'unit_price' => $product1->price,
             'subtotal' => 250.00,
         ]);
 
         // 2. Confirmed order ready for payment
         $confirmedOrder = Order::factory()->confirmed()->create([
             'user_id' => $user->id,
-            'customer_name' => $user->name,
-            'customer_email' => $user->email,
             'total_amount' => 499.99,
         ]);
 
         OrderItem::factory()->create([
             'order_id' => $confirmedOrder->id,
-            'product_name' => '27-inch 4K IPS Monitor',
+            'product_id' => $product2->id,
+            'product_name' => $product2->name,
             'quantity' => 1,
-            'unit_price' => 499.99,
+            'unit_price' => $product2->price,
             'subtotal' => 499.99,
         ]);
 
         // 3. Confirmed order with a successful payment (cannot be deleted)
         $paidOrder = Order::factory()->confirmed()->create([
             'user_id' => $user->id,
-            'customer_name' => $user->name,
-            'customer_email' => $user->email,
             'total_amount' => 150.00,
         ]);
 
         OrderItem::factory()->create([
             'order_id' => $paidOrder->id,
-            'product_name' => 'USB-C Docking Station',
+            'product_id' => $product3->id,
+            'product_name' => $product3->name,
             'quantity' => 1,
-            'unit_price' => 150.00,
+            'unit_price' => $product3->price,
             'subtotal' => 150.00,
         ]);
 

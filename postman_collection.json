@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9f8b2d10-4c7e-4b99-8d12-3f9a1c5e7788",
     "name": "Tocaan - Extendable Order & Payment Management API",
-    "description": "Complete RESTful API collection for the Laravel 12 Extendable Order & Payment Management System.\n\nIncludes:\n- JWT Authentication (`register`, `login`, `me`, `refresh`, `logout`)\n- Order Management (`index` with status filter & pagination, `store` with Idempotency-Key, `show`, `update`, `destroy`)\n- Payment Management (`store` using Strategy Pattern for `credit_card` and `paypal`, `index`, `orderPayments`)\n- Asynchronous Payment Webhooks with automatic HMAC-SHA256 signature calculation",
+    "description": "Complete RESTful API collection for the Laravel 12 Extendable Order & Payment Management System.\n\nIncludes:\n- JWT Authentication (`register`, `login`, `me`, `refresh`, `logout`)\n- Products & Order Management (`products`, `orders` index with status filter & pagination, `store` with Idempotency-Key using authenticated user token & DB `product_id` + `quantity`, `show`, `update`, `destroy`)\n- Payment Management (`store` using Strategy Pattern for `credit_card` and `paypal`, `index`, `orderPayments`)\n- Asynchronous Payment Webhooks with automatic HMAC-SHA256 signature calculation",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -284,9 +284,60 @@
       ]
     },
     {
-      "name": "2. Orders Management",
-      "description": "Endpoints for creating, viewing, filtering, updating, and deleting orders. Protected by JWT authentication, Redis caching, and pessimistic DB locking.",
+      "name": "2. Orders & Products Management",
+      "description": "Endpoints for listing catalog products and creating, viewing, filtering, updating, and deleting orders. Customer data is automatically taken from the authenticated JWT user, and product titles & prices are resolved directly from the database via `product_id`.",
       "item": [
+        {
+          "name": "List Available Products (Catalog)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?per_page=15&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Retrieves active products stored in the database along with their IDs and prices."
+          },
+          "response": [
+            {
+              "name": "200 OK - Products List",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"success\": true,\n    \"message\": \"Products retrieved successfully.\",\n    \"data\": [\n        {\n            \"id\": 1,\n            \"name\": \"Wireless Mechanical Keyboard\",\n            \"description\": \"RGB Hot-swappable Wireless Mechanical Keyboard\",\n            \"price\": 125,\n            \"stock\": 50,\n            \"is_active\": true\n        },\n        {\n            \"id\": 2,\n            \"name\": \"27-inch 4K IPS Monitor\",\n            \"description\": \"Ultra HD 144Hz IPS Display Monitor\",\n            \"price\": 499.99,\n            \"stock\": 30,\n            \"is_active\": true\n        }\n    ]\n}"
+            }
+          ]
+        },
         {
           "name": "Create Order (Idempotent)",
           "event": [
@@ -332,7 +383,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"customer_name\": \"Abdelrhman Mgahed\",\n    \"customer_email\": \"customer@example.com\",\n    \"customer_phone\": \"+96512345678\",\n    \"shipping_address\": \"Kuwait City, Sharq, Block 2\",\n    \"notes\": \"Deliver during business hours\",\n    \"items\": [\n        {\n            \"product_name\": \"MacBook Pro 16-inch M4\",\n            \"quantity\": 1,\n            \"price\": 2499.00\n        },\n        {\n            \"product_name\": \"Apple Magic Mouse\",\n            \"quantity\": 2,\n            \"price\": 99.50\n        }\n    ]\n}"
+              "raw": "{\n    \"shipping_address\": \"Kuwait City, Sharq, Block 2\",\n    \"notes\": \"Deliver during business hours\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": 2,\n            \"quantity\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/orders",
@@ -343,7 +394,7 @@
                 "orders"
               ]
             },
-            "description": "Creates a new order and calculates item subtotals and `total_amount` automatically."
+            "description": "Creates a new order for the authenticated JWT user. Resolves each item's `product_name` and `unit_price` from the `products` table by `product_id`, and calculates item subtotals and `total_amount` automatically."
           },
           "response": [
             {
@@ -351,7 +402,7 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "body": "{\n    \"success\": true,\n    \"message\": \"Order created successfully.\",\n    \"data\": {\n        \"id\": 4,\n        \"user_id\": 1,\n        \"status\": \"pending\",\n        \"total_amount\": 2698,\n        \"customer_details\": {\n            \"name\": \"Abdelrhman Mgahed\",\n            \"email\": \"customer@example.com\",\n            \"phone\": \"+96512345678\",\n            \"shipping_address\": \"Kuwait City, Sharq, Block 2\"\n        },\n        \"notes\": \"Deliver during business hours\",\n        \"payments_count\": 0,\n        \"items\": [\n            {\n                \"id\": 4,\n                \"product_name\": \"MacBook Pro 16-inch M4\",\n                \"quantity\": 1,\n                \"unit_price\": 2499,\n                \"subtotal\": 2499\n            },\n            {\n                \"id\": 5,\n                \"product_name\": \"Apple Magic Mouse\",\n                \"quantity\": 2,\n                \"unit_price\": 99.5,\n                \"subtotal\": 199\n            }\n        ],\n        \"payments\": [],\n        \"created_at\": \"2026-10-22T12:05:00+00:00\",\n        \"updated_at\": \"2026-10-22T12:05:00+00:00\"\n    }\n}"
+              "body": "{\n    \"success\": true,\n    \"message\": \"Order created successfully.\",\n    \"data\": {\n        \"id\": 4,\n        \"user_id\": 1,\n        \"status\": \"pending\",\n        \"total_amount\": 749.99,\n        \"shipping_address\": \"Kuwait City, Sharq, Block 2\",\n        \"notes\": \"Deliver during business hours\",\n        \"payments_count\": 0,\n        \"user\": {\n            \"id\": 1,\n            \"name\": \"Demo Customer\",\n            \"email\": \"test@example.com\",\n            \"created_at\": \"2026-10-22T12:00:00+00:00\"\n        },\n        \"items\": [\n            {\n                \"id\": 4,\n                \"product_id\": 1,\n                \"product_name\": \"Wireless Mechanical Keyboard\",\n                \"quantity\": 2,\n                \"unit_price\": 125,\n                \"subtotal\": 250\n            },\n            {\n                \"id\": 5,\n                \"product_id\": 2,\n                \"product_name\": \"27-inch 4K IPS Monitor\",\n                \"quantity\": 1,\n                \"unit_price\": 499.99,\n                \"subtotal\": 499.99\n            }\n        ],\n        \"payments\": [],\n        \"created_at\": \"2026-10-22T12:05:00+00:00\",\n        \"updated_at\": \"2026-10-22T12:05:00+00:00\"\n    }\n}"
             }
           ]
         },
@@ -436,7 +487,7 @@
           "response": []
         },
         {
-          "name": "Update Order (Confirm Order / Modify Items)",
+          "name": "Update Order (Confirm Order / Modify Items by product_id)",
           "request": {
             "auth": {
               "type": "bearer",
@@ -461,7 +512,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"confirmed\",\n    \"shipping_address\": \"Updated Address, Kuwait City Tower 10\",\n    \"items\": [\n        {\n            \"product_name\": \"MacBook Pro 16-inch M4\",\n            \"quantity\": 1,\n            \"price\": 2499.00\n        }\n    ]\n}"
+              "raw": "{\n    \"status\": \"confirmed\",\n    \"shipping_address\": \"Updated Address, Kuwait City Tower 10\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"quantity\": 3\n        },\n        {\n            \"product_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/orders/{{order_id}}",

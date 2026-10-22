@@ -196,10 +196,11 @@ Once registered, `POST /api/v1/orders/{order}/payments` with `"payment_method": 
 | `GET` | `/api/v1/auth/me` | JWT | Get authenticated user profile |
 | `POST` | `/api/v1/auth/refresh` | JWT | Refresh JWT token |
 | `POST` | `/api/v1/auth/logout` | JWT | Invalidate JWT token |
+| `GET` | `/api/v1/products` | JWT | List active catalog products (with IDs and prices) |
 | `GET` | `/api/v1/orders` | JWT | List paginated orders (`?status=pending\|confirmed\|cancelled&per_page=15`) |
-| `POST` | `/api/v1/orders` | JWT | Create order & calculate total (supports `Idempotency-Key`) |
-| `GET` | `/api/v1/orders/{order}` | JWT | View single order with items and payments |
-| `PUT` | `/api/v1/orders/{order}` | JWT | Update order details, status, or items |
+| `POST` | `/api/v1/orders` | JWT | Create order using `items: [{product_id, quantity}]` & calculate total (supports `Idempotency-Key`) |
+| `GET` | `/api/v1/orders/{order}` | JWT | View single order with user, items, and payments |
+| `PUT` | `/api/v1/orders/{order}` | JWT | Update order status, shipping address, or items (`[{product_id, quantity}]`) |
 | `DELETE` | `/api/v1/orders/{order}` | JWT | Delete order (rejected with `422` if payments exist) |
 | `GET` | `/api/v1/payments` | JWT | List all payments (paginated, filterable by `status` & `payment_method`) |
 | `GET` | `/api/v1/orders/{order}/payments` | JWT | List payments for a specific order (paginated) |

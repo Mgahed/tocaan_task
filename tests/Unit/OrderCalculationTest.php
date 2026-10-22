@@ -6,35 +6,30 @@ namespace Tests\Unit;
 
 use App\DTOs\Order\OrderDTO;
 use App\DTOs\Order\OrderItemDTO;
-use App\Enums\OrderStatusEnum;
+use App\Models\Product;
 use PHPUnit\Framework\TestCase;
 
 class OrderCalculationTest extends TestCase
 {
-    public function test_it_accurately_calculates_item_subtotals_and_order_total(): void
+    public function test_it_accurately_calculates_item_subtotals_and_order_total_from_products(): void
     {
-        $dto = OrderDTO::fromRequest(1, [
-            'customer_name' => 'John Doe',
-            'customer_email' => 'john@example.com',
-            'status' => OrderStatusEnum::PENDING->value,
-            'items' => [
-                [
-                    'product_name' => 'Laptop Stand',
-                    'quantity' => 3,
-                    'unit_price' => 45.50, // 136.50
-                ],
-                [
-                    'product_name' => 'USB-C Cable',
-                    'quantity' => 2,
-                    'unit_price' => 12.99, // 25.98
-                ],
-            ],
+        $product1 = new Product([
+            'name' => 'Laptop Stand',
+            'price' => 45.50,
         ]);
+        $product1->id = 1;
 
-        $this->assertCount(2, $dto->items);
-        $this->assertInstanceOf(OrderItemDTO::class, $dto->items[0]);
-        $this->assertSame(136.50, $dto->items[0]->subtotal);
-        $this->assertSame(25.98, $dto->items[1]->subtotal);
-        $this->assertSame(162.48, $dto->calculateTotal());
+        $product2 = new Product([
+            'name' => 'USB-C Cable',
+            'price' => 12.99,
+        ]);
+        $product2->id = 2;
+
+        $item1 = OrderItemDTO::fromProduct($product1, 3); // 136.50
+        $item2 = OrderItemDTO::fromProduct($product2, 2); // 25.98
+
+        $this->assertSame(136.50, $item1->subtotal);
+        $this->assertSame(25.98, $item2->subtotal);
+        $this->assertSame(162.48, OrderDTO::calculateTotalFromItems([$item1, $item2]));
     }
 }

@@ -9,17 +9,14 @@ use App\Enums\OrderStatusEnum;
 readonly class OrderDTO
 {
     /**
-     * @param array<int, OrderItemDTO> $items
+     * @param array<int, array{product_id: int, quantity: int}> $requestedItems
      */
     public function __construct(
         public int $userId,
-        public string $customerName,
-        public string $customerEmail,
-        public ?string $customerPhone,
         public ?string $shippingAddress,
         public ?string $notes,
         public OrderStatusEnum $status,
-        public array $items,
+        public array $requestedItems,
     ) {}
 
     /**
@@ -27,8 +24,11 @@ readonly class OrderDTO
      */
     public static function fromRequest(int $userId, array $validated): self
     {
-        $items = array_map(
-            static fn (array $item): OrderItemDTO => OrderItemDTO::fromArray($item),
+        $requestedItems = array_map(
+            static fn (array $item): array => [
+                'product_id' => (int) $item['product_id'],
+                'quantity' => (int) $item['quantity'],
+            ],
             $validated['items'] ?? []
         );
 
@@ -38,23 +38,22 @@ readonly class OrderDTO
 
         return new self(
             userId: $userId,
-            customerName: (string) $validated['customer_name'],
-            customerEmail: (string) $validated['customer_email'],
-            customerPhone: isset($validated['customer_phone']) ? (string) $validated['customer_phone'] : null,
             shippingAddress: isset($validated['shipping_address']) ? (string) $validated['shipping_address'] : null,
             notes: isset($validated['notes']) ? (string) $validated['notes'] : null,
             status: $status,
-            items: $items,
+            requestedItems: $requestedItems,
         );
     }
 
     /**
-     * Calculate the total amount across all order items.
+     * Calculate the total amount across resolved OrderItemDTOs.
+     *
+     * @param array<int, OrderItemDTO> $resolvedItems
      */
-    public function calculateTotal(): float
+    public static function calculateTotalFromItems(array $resolvedItems): float
     {
         $total = array_reduce(
-            $this->items,
+            $resolvedItems,
             static fn (float $carry, OrderItemDTO $item): float => $carry + $item->subtotal,
             0.0
         );

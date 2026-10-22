@@ -33,7 +33,10 @@ class PaypalGateway implements PaymentGatewayInterface
     public function charge(Order $order, PaymentPayloadDTO $payload): PaymentResultDTO
     {
         $transactionId = 'PAYPAL-' . strtoupper(Str::random(18));
-        $payerEmail = (string) ($payload->paymentDetails['payer_email'] ?? $order->customer_email);
+        $defaultEmail = $order->relationLoaded('user') && $order->user !== null
+            ? $order->user->email
+            : 'payer@example.com';
+        $payerEmail = (string) ($payload->paymentDetails['payer_email'] ?? $defaultEmail);
 
         if ($payload->simulateFailure || str_contains(strtolower($payerEmail), 'fail')) {
             return new PaymentResultDTO(
