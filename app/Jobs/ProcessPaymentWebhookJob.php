@@ -29,6 +29,7 @@ class ProcessPaymentWebhookJob implements ShouldQueue
     public function __construct(
         public readonly int $webhookEventId,
         public readonly string $targetStatus,
+        public readonly ?int $paymentId = null,
         public readonly ?string $transactionId = null,
         public readonly ?string $paymentReference = null,
     ) {}
@@ -56,14 +57,16 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 // Locate the corresponding Payment row using pessimistic locking
                 $paymentQuery = Payment::query()->lockForUpdate();
 
-                if ($this->transactionId !== null && $this->transactionId !== '') {
+                if ($this->paymentId !== null) {
+                    $paymentQuery->where('id', $this->paymentId);
+                } elseif ($this->transactionId !== null && $this->transactionId !== '') {
                     $paymentQuery->where('transaction_id', $this->transactionId);
                 } elseif ($this->paymentReference !== null && $this->paymentReference !== '') {
                     $paymentQuery->where('payment_reference', $this->paymentReference);
                 } else {
                     $webhookEvent->update([
                         'status' => 'failed',
-                        'error_message' => 'Missing transaction_id and payment_id in webhook payload.',
+                        'error_message' => 'Missing payment identifier in webhook payload.',
                         'processed_at' => now(),
                     ]);
 

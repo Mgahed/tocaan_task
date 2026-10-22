@@ -9,12 +9,15 @@ use App\DTOs\Payment\PaymentResultDTO;
 use App\DTOs\Payment\WebhookEventDTO;
 use App\Enums\PaymentStatusEnum;
 use App\Models\Order;
+use App\Services\Payments\Concerns\VerifiesWebhookSignatureTrait;
 use App\Services\Payments\Contracts\PaymentGatewayInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class PaypalGateway implements PaymentGatewayInterface
 {
+    use VerifiesWebhookSignatureTrait;
+
     /**
      * @param array<string, mixed> $config
      */
@@ -99,16 +102,9 @@ class PaypalGateway implements PaymentGatewayInterface
      */
     public function verifyWebhookSignature(Request $request): bool
     {
-        $signature = (string) $request->header('X-Webhook-Signature', '');
         $secret = (string) ($this->config['webhook_secret'] ?? '');
 
-        if ($signature === '' || $secret === '') {
-            return false;
-        }
-
-        $expectedSignature = hash_hmac('sha256', $request->getContent(), $secret);
-
-        return hash_equals($expectedSignature, $signature);
+        return $this->verifyHmacSignature($request, $secret);
     }
 
     /**
@@ -117,7 +113,7 @@ class PaypalGateway implements PaymentGatewayInterface
     public function parseWebhookPayload(Request $request): WebhookEventDTO
     {
         $payload = $request->all();
-        $statusString = strtolower((string) ($payload['status'] ?? 'successful'));
+        $statusString = strtolower(trim((string) ($payload['status'] ?? 'successful')));
 
         $targetStatus = match ($statusString) {
             'completed', 'successful', 'approved', 'succeeded' => PaymentStatusEnum::SUCCESSFUL,
@@ -125,14 +121,16 @@ class PaypalGateway implements PaymentGatewayInterface
             default => PaymentStatusEnum::PENDING,
         };
 
+        $paymentRef = $payload['payment_id'] ?? ($payload['payment_reference'] ?? null);
+
         return new WebhookEventDTO(
             gateway: $this->getIdentifier(),
-            eventId: (string) ($payload['event_id'] ?? ''),
-            eventType: (string) ($payload['event_type'] ?? 'PAYMENT.CAPTURE.COMPLETED'),
-            transactionId: (string) ($payload['transaction_id'] ?? ''),
+            eventId: trim((string) ($payload['event_id'] ?? '')),
+            eventType: trim((string) ($payload['event_type'] ?? 'PAYMENT.CAPTURE.COMPLETED')),
+            transactionId: trim((string) ($payload['transaction_id'] ?? '')),
             targetStatus: $targetStatus,
             rawPayload: $payload,
-            paymentReference: isset($payload['payment_id']) ? (string) $payload['payment_id'] : null,
+            paymentReference: $paymentRef !== null ? trim((string) $paymentRef) : null,
         );
     }
 }

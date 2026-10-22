@@ -59,7 +59,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        Product::updateOrCreate(
+        $product4 = Product::updateOrCreate(
             ['name' => 'MacBook Pro 16-inch M4'],
             [
                 'description' => 'Apple M4 Pro chip with 14-core CPU and 20-core GPU',
@@ -99,7 +99,37 @@ class DatabaseSeeder extends Seeder
             'subtotal' => 499.99,
         ]);
 
-        // 3. Confirmed order with a successful payment (cannot be deleted)
+        // 3. Confirmed order with a PENDING payment (ready for immediate Webhook testing in Postman)
+        $webhookOrder = Order::factory()->confirmed()->create([
+            'user_id' => $user->id,
+            'total_amount' => 2499.00,
+        ]);
+
+        OrderItem::factory()->create([
+            'order_id' => $webhookOrder->id,
+            'product_id' => $product4->id,
+            'product_name' => $product4->name,
+            'quantity' => 1,
+            'unit_price' => $product4->price,
+            'subtotal' => 2499.00,
+        ]);
+
+        Payment::updateOrCreate(
+            ['transaction_id' => 'cc_txn_pending_demo_001'],
+            [
+                'payment_reference' => '11111111-2222-3333-4444-555555555555',
+                'order_id' => $webhookOrder->id,
+                'payment_method' => PaymentMethodEnum::CREDIT_CARD->value,
+                'status' => \App\Enums\PaymentStatusEnum::PENDING,
+                'amount' => 2499.00,
+                'gateway_response' => [
+                    'gateway' => 'credit_card',
+                    'status_reason' => '3ds_authentication_pending',
+                ],
+            ]
+        );
+
+        // 4. Confirmed order with a SUCCESSFUL payment (cannot be deleted)
         $paidOrder = Order::factory()->confirmed()->create([
             'user_id' => $user->id,
             'total_amount' => 150.00,
@@ -114,10 +144,19 @@ class DatabaseSeeder extends Seeder
             'subtotal' => 150.00,
         ]);
 
-        Payment::factory()->successful()->create([
-            'order_id' => $paidOrder->id,
-            'payment_method' => PaymentMethodEnum::CREDIT_CARD->value,
-            'amount' => 150.00,
-        ]);
+        Payment::updateOrCreate(
+            ['transaction_id' => 'cc_txn_paid_demo_002'],
+            [
+                'payment_reference' => '22222222-3333-4444-5555-666666666666',
+                'order_id' => $paidOrder->id,
+                'payment_method' => PaymentMethodEnum::CREDIT_CARD->value,
+                'status' => \App\Enums\PaymentStatusEnum::SUCCESSFUL,
+                'amount' => 150.00,
+                'gateway_response' => [
+                    'gateway' => 'credit_card',
+                    'message' => 'Credit card charge approved.',
+                ],
+            ]
+        );
     }
 }

@@ -55,7 +55,9 @@ class WebhookTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.duplicate', false);
+            ->assertJsonPath('data.duplicate', false)
+            ->assertJsonPath('data.payment_id', $payment->payment_reference)
+            ->assertJsonPath('data.target_status', PaymentStatusEnum::SUCCESSFUL->value);
 
         // Verify payment status transitioned from pending -> successful
         $this->assertDatabaseHas('payments', [
@@ -117,5 +119,51 @@ class WebhookTest extends TestCase
         $response->assertStatus(401)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Invalid webhook signature.');
+    }
+
+    public function test_webhook_with_missing_signature_header_is_rejected_with_401(): void
+    {
+        config(['payment.gateways.credit_card.webhook_secret' => 'whsec_real_secret']);
+
+        $response = $this->postJson('/api/v1/webhooks/payments/credit_card', [
+            'event_id' => 'evt_missing_sig_001',
+            'transaction_id' => 'cc_txn_001',
+            'status' => 'successful',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Missing X-Webhook-Signature header.');
+    }
+
+    public function test_webhook_with_unknown_transaction_id_returns_404(): void
+    {
+        $secret = 'whsec_test_credit_card_secret';
+        config(['payment.gateways.credit_card.webhook_secret' => $secret]);
+
+        $rawJson = json_encode([
+            'event_id' => 'evt_unknown_txn_001',
+            'transaction_id' => 'cc_txn_does_not_exist_999',
+            'status' => 'successful',
+        ], JSON_THROW_ON_ERROR);
+
+        $signature = hash_hmac('sha256', $rawJson, $secret);
+
+        $response = $this->call(
+            'POST',
+            '/api/v1/webhooks/payments/credit_card',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_WEBHOOK_SIGNATURE' => $signature,
+            ],
+            $rawJson
+        );
+
+        $response->assertStatus(404)
+            ->assertJsonPath('success', false);
     }
 }

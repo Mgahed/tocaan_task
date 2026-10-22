@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9f8b2d10-4c7e-4b99-8d12-3f9a1c5e7788",
     "name": "Tocaan - Extendable Order & Payment Management API",
-    "description": "Complete RESTful API collection for the Laravel 12 Extendable Order & Payment Management System.\n\nIncludes:\n- JWT Authentication (`register`, `login`, `me`, `refresh`, `logout`)\n- Products & Order Management (`products`, `orders` index with status filter & pagination, `store` with Idempotency-Key using authenticated user token & DB `product_id` + `quantity`, `show`, `update`, `destroy`)\n- Payment Management (`store` using Strategy Pattern for `credit_card` and `paypal`, `index`, `orderPayments`)\n- Asynchronous Payment Webhooks with automatic HMAC-SHA256 signature calculation",
+    "description": "Complete RESTful API collection for the Laravel 12 Extendable Order & Payment Management System.\n\nIncludes:\n1. **Authentication** (`register`, `login`, `me`, `refresh`, `logout`)\n2. **Orders & Products Management** (`products`, `orders` index with status filter & pagination, `store` with Idempotency-Key using authenticated user token & DB `product_id` + `quantity`, `show`, `update`, `destroy`)\n3. **Payments Management** (`store` using Strategy Pattern for `credit_card`, `credit_card` pending 3DS, and `paypal`, `index`, `orderPayments`)\n4. **Payment Webhooks (All Cases)** — Valid HMAC-SHA256 signature (`credit_card` & `paypal`), Idempotent Duplicate Replay, Failed Charge Webhook, Invalid/Tampered Signature (`401`), Missing Signature Header (`401`), and Unknown Transaction ID (`404`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,12 +18,22 @@
     },
     {
       "key": "order_id",
-      "value": "1",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "11111111-2222-3333-4444-555555555555",
       "type": "string"
     },
     {
       "key": "transaction_id",
-      "value": "cc_txn_sample1234567890",
+      "value": "cc_txn_pending_demo_001",
+      "type": "string"
+    },
+    {
+      "key": "webhook_event_id",
+      "value": "evt_cc_90001",
       "type": "string"
     },
     {
@@ -89,24 +99,6 @@
           "response": [
             {
               "name": "201 Created - Registration Success",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"name\": \"Abdelrhman Mgahed\",\n    \"email\": \"customer@example.com\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/auth/register",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "register"
-                  ]
-                }
-              },
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
@@ -217,6 +209,20 @@
         },
         {
           "name": "Refresh JWT Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.access_token) {",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.data.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "auth": {
               "type": "bearer",
@@ -402,7 +408,7 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "body": "{\n    \"success\": true,\n    \"message\": \"Order created successfully.\",\n    \"data\": {\n        \"id\": 4,\n        \"user_id\": 1,\n        \"status\": \"pending\",\n        \"total_amount\": 749.99,\n        \"shipping_address\": \"Kuwait City, Sharq, Block 2\",\n        \"notes\": \"Deliver during business hours\",\n        \"payments_count\": 0,\n        \"user\": {\n            \"id\": 1,\n            \"name\": \"Demo Customer\",\n            \"email\": \"test@example.com\",\n            \"created_at\": \"2026-10-22T12:00:00+00:00\"\n        },\n        \"items\": [\n            {\n                \"id\": 4,\n                \"product_id\": 1,\n                \"product_name\": \"Wireless Mechanical Keyboard\",\n                \"quantity\": 2,\n                \"unit_price\": 125,\n                \"subtotal\": 250\n            },\n            {\n                \"id\": 5,\n                \"product_id\": 2,\n                \"product_name\": \"27-inch 4K IPS Monitor\",\n                \"quantity\": 1,\n                \"unit_price\": 499.99,\n                \"subtotal\": 499.99\n            }\n        ],\n        \"payments\": [],\n        \"created_at\": \"2026-10-22T12:05:00+00:00\",\n        \"updated_at\": \"2026-10-22T12:05:00+00:00\"\n    }\n}"
+              "body": "{\n    \"success\": true,\n    \"message\": \"Order created successfully.\",\n    \"data\": {\n        \"id\": 5,\n        \"user_id\": 1,\n        \"status\": \"pending\",\n        \"total_amount\": 749.99,\n        \"shipping_address\": \"Kuwait City, Sharq, Block 2\",\n        \"notes\": \"Deliver during business hours\",\n        \"payments_count\": 0,\n        \"user\": {\n            \"id\": 1,\n            \"name\": \"Demo Customer\",\n            \"email\": \"test@example.com\",\n            \"created_at\": \"2026-10-22T12:00:00+00:00\"\n        },\n        \"items\": [\n            {\n                \"id\": 5,\n                \"product_id\": 1,\n                \"product_name\": \"Wireless Mechanical Keyboard\",\n                \"quantity\": 2,\n                \"unit_price\": 125,\n                \"subtotal\": 250\n            },\n            {\n                \"id\": 6,\n                \"product_id\": 2,\n                \"product_name\": \"27-inch 4K IPS Monitor\",\n                \"quantity\": 1,\n                \"unit_price\": 499.99,\n                \"subtotal\": 499.99\n            }\n        ],\n        \"payments\": [],\n        \"created_at\": \"2026-10-22T12:05:00+00:00\",\n        \"updated_at\": \"2026-10-22T12:05:00+00:00\"\n    }\n}"
             }
           ]
         },
@@ -579,18 +585,89 @@
     },
     {
       "name": "3. Payments Management (Strategy Pattern)",
-      "description": "Endpoints for processing payments via pluggable gateway strategies (`credit_card`, `paypal`, etc.) and viewing payment history.",
+      "description": "Endpoints for processing payments via pluggable gateway strategies (`credit_card`, `paypal`, etc.) and viewing payment history. Automatically saves `transaction_id` and `payment_id` for Webhook testing.",
       "item": [
         {
-          "name": "Process Payment - Credit Card Gateway",
+          "name": "Process Payment - Credit Card (Pending 3DS for Webhook Test)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.transaction_id) {",
-                  "    pm.collectionVariables.set('transaction_id', jsonData.data.transaction_id);",
+                  "if (jsonData.data) {",
+                  "    if (jsonData.data.transaction_id) {",
+                  "        pm.collectionVariables.set('transaction_id', jsonData.data.transaction_id);",
+                  "    }",
+                  "    if (jsonData.data.payment_id) {",
+                  "        pm.collectionVariables.set('payment_id', jsonData.data.payment_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"payment_method\": \"credit_card\",\n    \"payment_details\": {\n        \"card_number\": \"4242424242421111\",\n        \"expiry_month\": 12,\n        \"expiry_year\": 2029,\n        \"cvv\": \"123\"\n    },\n    \"simulate_pending\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/payments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "payments"
+              ]
+            },
+            "description": "Creates a `pending` payment on a confirmed order and saves its `transaction_id` and `payment_id` in collection variables so you can immediately trigger a Webhook to transition it to `successful` or `failed`."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Payment - Credit Card (Immediate Success)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data) {",
+                  "    if (jsonData.data.transaction_id) {",
+                  "        pm.collectionVariables.set('transaction_id', jsonData.data.transaction_id);",
+                  "    }",
+                  "    if (jsonData.data.payment_id) {",
+                  "        pm.collectionVariables.set('payment_id', jsonData.data.payment_id);",
+                  "    }",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -659,6 +736,25 @@
         },
         {
           "name": "Process Payment - PayPal Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data) {",
+                  "    if (jsonData.data.transaction_id) {",
+                  "        pm.collectionVariables.set('transaction_id', jsonData.data.transaction_id);",
+                  "    }",
+                  "    if (jsonData.data.payment_id) {",
+                  "        pm.collectionVariables.set('payment_id', jsonData.data.payment_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "auth": {
               "type": "bearer",
@@ -792,19 +888,24 @@
       ]
     },
     {
-      "name": "4. Payment Webhooks (RabbitMQ Async)",
-      "description": "Public webhook endpoints secured via HMAC-SHA256 signature verification (`X-Webhook-Signature`). Includes Pre-request Script to compute the valid HMAC signature automatically.",
+      "name": "4. Payment Webhooks (RabbitMQ Async - All Cases)",
+      "description": "Public webhook endpoints secured via HMAC-SHA256 signature verification (`X-Webhook-Signature`).\n\nAll valid-signature requests use `pm.variables.replaceIn(pm.request.body.raw)` in their Pre-request Script so Postman resolves variables like `{{transaction_id}}` and `{{webhook_event_id}}` BEFORE computing the HMAC-SHA256 signature.",
       "item": [
         {
-          "name": "Credit Card Webhook Notification",
+          "name": "4.1 Credit Card Webhook - Valid Signature (Mark Payment Successful)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
+                  "// Generate a fresh event_id and save it so Case 4.2 can test duplicate replay",
+                  "var eventId = 'evt_cc_' + Date.now();",
+                  "pm.collectionVariables.set('webhook_event_id', eventId);",
+                  "",
                   "var secret = pm.collectionVariables.get('cc_webhook_secret');",
-                  "var rawBody = pm.request.body.raw;",
-                  "var signature = CryptoJS.HmacSHA256(rawBody, secret).toString(CryptoJS.enc.Hex);",
+                  "// Resolve all {{variables}} in body before computing HMAC-SHA256",
+                  "var resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "var signature = CryptoJS.HmacSHA256(resolvedBody, secret).toString(CryptoJS.enc.Hex);",
                   "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });"
                 ],
                 "type": "text/javascript"
@@ -825,7 +926,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"event_id\": \"evt_cc_90001\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"status\": \"successful\"\n}"
+              "raw": "{\n    \"event_id\": \"{{webhook_event_id}}\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"payment_id\": \"{{payment_id}}\",\n    \"status\": \"successful\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/webhooks/payments/credit_card",
@@ -837,7 +938,8 @@
                 "payments",
                 "credit_card"
               ]
-            }
+            },
+            "description": "Computes a valid HMAC-SHA256 signature over the resolved body, verifies it, records the webhook event, and dispatches `ProcessPaymentWebhookJob` to RabbitMQ (`payment_webhooks` queue) to mark the payment `successful`."
           },
           "response": [
             {
@@ -845,14 +947,308 @@
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "body": "{\n    \"success\": true,\n    \"message\": \"Webhook event verified and queued for processing.\",\n    \"data\": {\n        \"duplicate\": false,\n        \"event_id\": \"evt_cc_90001\",\n        \"gateway\": \"credit_card\",\n        \"status\": \"pending\"\n    }\n}"
-            },
+              "body": "{\n    \"success\": true,\n    \"message\": \"Webhook event verified and queued for processing.\",\n    \"data\": {\n        \"duplicate\": false,\n        \"event_id\": \"evt_cc_1761147000000\",\n        \"gateway\": \"credit_card\",\n        \"payment_id\": \"11111111-2222-3333-4444-555555555555\",\n        \"order_id\": 3,\n        \"target_status\": \"successful\",\n        \"status\": \"pending\"\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "4.2 Credit Card Webhook - Duplicate Replay (Idempotency Case)",
+          "event": [
             {
-              "name": "401 Unauthorized - Invalid Webhook Signature",
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Reuse the exact same webhook_event_id from 4.1 to test webhook idempotency",
+                  "var secret = pm.collectionVariables.get('cc_webhook_secret');",
+                  "var resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "var signature = CryptoJS.HmacSHA256(resolvedBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"{{webhook_event_id}}\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"payment_id\": \"{{payment_id}}\",\n    \"status\": \"successful\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/credit_card",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "credit_card"
+              ]
+            },
+            "description": "Replays the exact same `event_id` from request 4.1 with a valid signature. Returns `200 OK` with `\"duplicate\": true` without re-queuing the job."
+          },
+          "response": [
+            {
+              "name": "200 OK - Duplicate Webhook Ignored Idempotently",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"success\": true,\n    \"message\": \"Webhook event already received and ignored idempotently.\",\n    \"data\": {\n        \"duplicate\": true,\n        \"event_id\": \"evt_cc_1761147000000\",\n        \"gateway\": \"credit_card\",\n        \"status\": \"processed\"\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "4.3 Credit Card Webhook - Valid Signature (Mark Payment Failed)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var eventId = 'evt_cc_fail_' + Date.now();",
+                  "pm.collectionVariables.set('webhook_event_id', eventId);",
+                  "",
+                  "var secret = pm.collectionVariables.get('cc_webhook_secret');",
+                  "var resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "var signature = CryptoJS.HmacSHA256(resolvedBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"{{webhook_event_id}}\",\n    \"event_type\": \"charge.failed\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"payment_id\": \"{{payment_id}}\",\n    \"status\": \"failed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/credit_card",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "credit_card"
+              ]
+            },
+            "description": "Simulates an asynchronous gateway failure webhook (`charge.failed`), transitioning the payment status to `failed` via RabbitMQ."
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 PayPal Webhook - Valid Signature (Mark Payment Successful)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var eventId = 'evt_pp_' + Date.now();",
+                  "pm.collectionVariables.set('webhook_event_id', eventId);",
+                  "",
+                  "var secret = pm.collectionVariables.get('paypal_webhook_secret');",
+                  "var resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "var signature = CryptoJS.HmacSHA256(resolvedBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"{{webhook_event_id}}\",\n    \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"payment_id\": \"{{payment_id}}\",\n    \"status\": \"completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/paypal",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "paypal"
+              ]
+            },
+            "description": "Verifies PayPal webhook signature using `paypal_webhook_secret` and queues status update via RabbitMQ."
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Webhook Error - Invalid / Tampered Signature (401 Unauthorized)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Signature",
+                "value": "forged_invalid_hmac_signature_0000000000000000",
+                "description": "Deliberately invalid signature to test 401 rejection"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"evt_tampered_999\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"status\": \"successful\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/credit_card",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "credit_card"
+              ]
+            },
+            "description": "Sends a forged/tampered `X-Webhook-Signature` header. Rejected immediately with `401 Unauthorized`."
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized - Invalid Signature",
               "status": "Unauthorized",
               "code": 401,
               "_postman_previewlanguage": "json",
               "body": "{\n    \"success\": false,\n    \"message\": \"Invalid webhook signature.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "4.6 Webhook Error - Missing Signature Header (401 Unauthorized)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"evt_no_header_999\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"status\": \"successful\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/credit_card",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "credit_card"
+              ]
+            },
+            "description": "Omits the `X-Webhook-Signature` header completely. Rejected immediately with `401 Unauthorized`."
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized - Missing Header",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"success\": false,\n    \"message\": \"Missing X-Webhook-Signature header.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "4.7 Webhook Error - Unknown Transaction ID (404 Not Found)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var eventId = 'evt_not_found_' + Date.now();",
+                  "pm.collectionVariables.set('webhook_event_id', eventId);",
+                  "",
+                  "var secret = pm.collectionVariables.get('cc_webhook_secret');",
+                  "var resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "var signature = CryptoJS.HmacSHA256(resolvedBody, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Webhook-Signature', value: signature });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event_id\": \"{{webhook_event_id}}\",\n    \"event_type\": \"charge.succeeded\",\n    \"transaction_id\": \"cc_txn_non_existent_999999\",\n    \"status\": \"successful\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/payments/credit_card",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments",
+                "credit_card"
+              ]
+            },
+            "description": "Sends a valid HMAC-SHA256 signature, but references a `transaction_id` that does not exist in the `payments` table. Returns `404 Not Found`."
+          },
+          "response": [
+            {
+              "name": "404 Not Found - Payment Record Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"success\": false,\n    \"message\": \"Matching payment record not found for the provided transaction_id or payment_id.\"\n}"
             }
           ]
         }
