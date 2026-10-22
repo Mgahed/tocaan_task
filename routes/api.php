@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PaymentController;
+use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -21,11 +22,17 @@ Route::prefix('v1')->group(function (): void {
         });
     });
 
+    // Public Webhook Endpoint (Protected via HMAC Signature Verification)
+    Route::post('webhooks/payments/{gateway}', [PaymentWebhookController::class, 'handle'])
+        ->name('api.v1.webhooks.payments.handle');
+
     // Protected Order & Payment Management Routes
     Route::middleware('auth:api')->group(function (): void {
         // Orders
         Route::get('orders', [OrderController::class, 'index'])->name('api.v1.orders.index');
-        Route::post('orders', [OrderController::class, 'store'])->name('api.v1.orders.store');
+        Route::post('orders', [OrderController::class, 'store'])
+            ->middleware('idempotent')
+            ->name('api.v1.orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])
             ->whereNumber('order')
             ->name('api.v1.orders.show');
@@ -43,6 +50,7 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.orders.payments.index');
         Route::post('orders/{order}/payments', [PaymentController::class, 'store'])
             ->whereNumber('order')
+            ->middleware('idempotent')
             ->name('api.v1.orders.payments.store');
     });
 });

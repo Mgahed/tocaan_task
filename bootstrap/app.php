@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\BusinessRuleException;
 use App\Exceptions\UnsupportedPaymentGatewayException;
+use App\Http\Middleware\EnsureIdempotency;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -27,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(fn (Request $request) => null);
+        $middleware->alias([
+            'idempotent' => EnsureIdempotency::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e): bool {
