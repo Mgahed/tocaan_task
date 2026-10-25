@@ -3,11 +3,10 @@ name: Tests
 on:
   push:
     branches:
+      - main
       - master
       - '*.x'
   pull_request:
-  schedule:
-    - cron: '0 0 * * *'
 
 permissions:
   contents: read
@@ -19,7 +18,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php: [8.2, 8.3, 8.4]
+        php: [8.3, 8.4]
 
     name: PHP ${{ matrix.php }}
 
@@ -31,7 +30,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, sockets
           coverage: none
 
       - name: Install Composer dependencies
@@ -40,8 +39,10 @@ jobs:
       - name: Copy environment file
         run: cp .env.example .env
 
-      - name: Generate app key
-        run: php artisan key:generate
+      - name: Generate app key and JWT secret
+        run: |
+          php artisan key:generate
+          php artisan jwt:secret --force
 
       - name: Execute tests
         run: vendor/bin/phpunit

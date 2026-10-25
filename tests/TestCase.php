@@ -20,6 +20,11 @@ abstract class TestCase extends BaseTestCase
             'SESSION_DRIVER' => 'array',
         ];
 
+        // Ensure a valid 256-bit JWT_SECRET is always available during testing even if `jwt:secret` was not run
+        if (empty(getenv('JWT_SECRET'))) {
+            $testingEnv['JWT_SECRET'] = 'testing_jwt_secret_key_that_is_at_least_64_characters_long_1234567890';
+        }
+
         foreach ($testingEnv as $key => $value) {
             putenv("{$key}={$value}");
             $_ENV[$key] = $value;
